@@ -14,6 +14,10 @@ class ZipHttpFile extends ZipArchive
   protected $fileds = [
   ];
 
+  protected $httpFiles = [];
+
+  protected $tmpFiles = [];
+
   public function __construct($name) {
     if(file_exists($name)) {
       echo "";
@@ -27,10 +31,29 @@ class ZipHttpFile extends ZipArchive
 
   public function __destruct() {
     $this->close();
+    $this->_unlinkTmpFiles();
   }
+
+  private function _unlinkTmpFiles() {
+    foreach ($this->tmpFiles as $tmpFIle) {
+      file_exists($tmpFIle) && unlink($tmpFIle);
+    }
+  }
+
 
   public function canUse() {
     return self::$switch;
+  }
+
+  public function execute() {
+    foreach ($this->httpFiles as $zipName => $file) {
+      $tmpFilePath = $this->_getTmpFilePath($zipName);
+      if(!$this->_getHttpFile($file, $tmpFilePath)) {
+        $this->fileds[] = [$zipName, $file];
+      }
+      $this->addFile($tmpFilePath, $zipName);
+      $this->tmpFiles[] = $tmpFilePath;
+    }
   }
 
   public function addHttpFiles(array $files) {
@@ -38,14 +61,8 @@ class ZipHttpFile extends ZipArchive
       return false;
     }
     foreach ($files as $name => $file) {
-      //TODO 下载file
       $zipName = $this->_getNameFromUrl($name, $file);
-      $tmpFilePath = $this->_getTmpFilePath($zipName);
-      if(!$this->_getHttpFile($file, $tmpFilePath)) {
-        $this->fileds[] = [$zipName, $file];
-      }
-      $this->addFile($tmpFilePath, $zipName);
-      unlink($tmpFilePath);
+      $this->httpFiles[$zipName] = $file;
     }
     return true;
   }
@@ -95,4 +112,4 @@ $files = [
   'apk5.apk' => 'http://test-static.bj.bcebos.com/app/static/5338ce40a00debd24a3cfafc34756644.apk',
 ];
 $t->addHttpFiles($files);
-
+$t->execute();
